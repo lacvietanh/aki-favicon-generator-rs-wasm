@@ -1,0 +1,4 @@
+# Cấu hình cho GitHub Linguist (để đếm ngôn ngữ)
+
+# Bắt buộc đếm ngôn ngữ trong thư mục demo (mặc định GitHub bỏ qua các thư mục như docs, demo, examples)
+demo/** linguist-detectable=true
