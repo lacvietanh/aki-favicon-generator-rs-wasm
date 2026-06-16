@@ -24,8 +24,10 @@ cd demo && npm install && npm run dev
 - **Artifact matrix** — output files, manifest template, MVP scope, caveats → [docs/feat/artifact-matrix.md](docs/feat/artifact-matrix.md)
 - **Build & integration** — build commands, JS API, Nuxt 4 setup, HTML snippet → [docs/ref/build-integration.md](docs/ref/build-integration.md)
 
-## Live PWA Testing
+## Live Demo
 
-The demo site includes a **Live PWA Testing** feature.
-It compiles a minimal PWA test page using your generated favicon assets and deploys it live to `https://test.akivn.net` via local `rsync` over SSH (requires a configured `akicloud` host in your SSH configuration). This allows instant end-to-end testing on physical devices (mobile/tablet) by scanning a generated QR code.
+This engine is integrated and live at:
+👉 **[akitao.com/tools/favicon-generator](https://akitao.com/tools/favicon-generator)**
+
+You can use this tool to generate PWA-compliant icon sets and test them directly on your devices.
 
