@@ -1,4 +1,5 @@
-# Cấu hình cho GitHub Linguist (để đếm ngôn ngữ)
+# Gỡ nhãn "Documentation" mặc định của GitHub cho thư mục demo
+demo/** linguist-documentation=false
 
-# Bắt buộc đếm ngôn ngữ trong thư mục demo (mặc định GitHub bỏ qua các thư mục như docs, demo, examples)
-demo/** linguist-detectable=true
+# Ngăn GitHub nhận nhầm code demo là thư viện của bên thứ 3 (Vendored)
+demo/** linguist-vendored=false
