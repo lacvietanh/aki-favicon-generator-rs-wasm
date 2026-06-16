@@ -1,5 +1,11 @@
 # aki-favicon-generator
 
+🚀 **Official Online Generator:** 👉 **[akitao.com/tools/favicon-generator](https://akitao.com/tools/favicon-generator)**
+
+> **Note:** This repository contains the core Rust/WASM engine specifically built to power the online generator above. It allows users to generate PWA-compliant icon sets directly in their browser with zero server cost.
+
+---
+
 Client-side WASM favicon generator — produces a PWA-compliant icon set from a single PNG/JPEG input in under 1 second, with zero server cost.
 
 ## Quick start
@@ -23,11 +29,3 @@ cd demo && npm install && npm run dev
 - **Architecture & design** — goals, safe-zone rule, data flow, memory constraints → [docs/arch/design.md](docs/arch/design.md)
 - **Artifact matrix** — output files, manifest template, MVP scope, caveats → [docs/feat/artifact-matrix.md](docs/feat/artifact-matrix.md)
 - **Build & integration** — build commands, JS API, Nuxt 4 setup, HTML snippet → [docs/ref/build-integration.md](docs/ref/build-integration.md)
-
-## Live Demo
-
-This engine is integrated and live at:
-👉 **[akitao.com/tools/favicon-generator](https://akitao.com/tools/favicon-generator)**
-
-You can use this tool to generate PWA-compliant icon sets and test them directly on your devices.
-
