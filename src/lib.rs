@@ -21,6 +21,11 @@ pub struct FaviconOptions {
     pub background_color: Option<String>,
     /// Safe-zone ratio for the maskable icon (default: 0.80).
     pub safe_zone: f32,
+    /// Whether to generate a diagonal gradient background for solid icons.
+    pub fill_gradient: bool,
+    /// Hex string for the gradient highlight color. None = auto-detect.
+    #[wasm_bindgen(getter_with_clone)]
+    pub gradient_color: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -31,6 +36,8 @@ impl FaviconOptions {
             theme_color: None,
             background_color: None,
             safe_zone: 0.80,
+            fill_gradient: true,
+            gradient_color: None,
         }
     }
 
@@ -48,6 +55,16 @@ impl FaviconOptions {
         self.safe_zone = ratio.clamp(0.5, 1.0);
         self
     }
+
+    pub fn with_fill_gradient(mut self, gradient: bool) -> Self {
+        self.fill_gradient = gradient;
+        self
+    }
+
+    pub fn with_gradient_color(mut self, color: String) -> Self {
+        self.gradient_color = Some(color);
+        self
+    }
 }
 
 /// Output returned to JS — each field is the raw bytes of the corresponding file.
@@ -61,6 +78,14 @@ pub struct FaviconSet {
     // icon-192.png — original transparency preserved, purpose: any
     #[wasm_bindgen(getter_with_clone)]
     pub icon_192: Vec<u8>,
+
+    // icon-48.png — original transparency preserved, purpose: any (SEO/Discovery)
+    #[wasm_bindgen(getter_with_clone)]
+    pub icon_48: Vec<u8>,
+
+    // icon-96.png — original transparency preserved, purpose: any (SEO/Discovery)
+    #[wasm_bindgen(getter_with_clone)]
+    pub icon_96: Vec<u8>,
 
     // icon-512-maskable.png — solid bg + logo inside 80% safe zone, purpose: maskable
     #[wasm_bindgen(getter_with_clone)]
@@ -104,6 +129,14 @@ pub fn generate_favicon_set(
     let bg_rgb = color::hex_to_rgb(&background_color)
         .map_err(|e| JsValue::from_str(&e))?;
 
+    // For gradient highlight, default to pure white if not specified or invalid.
+    // White represents a strong light source.
+    let grad_rgb = if let Some(gc) = &options.gradient_color {
+        color::hex_to_rgb(gc).unwrap_or((255, 255, 255))
+    } else {
+        (255, 255, 255)
+    };
+
     // 3. Generate icons
     //
     // favicon.ico: 16×16 + 32×32 embedded
@@ -117,9 +150,23 @@ pub fn generate_favicon_set(
             .map_err(|e| JsValue::from_str(&e))?
     };
 
+    // icon-48.png: resize only, keep transparency
+    let icon_48 = {
+        let resized = transform::resize_exact(&img, 48);
+        encoder::png::encode(&resized)
+            .map_err(|e| JsValue::from_str(&e))?
+    };
+
+    // icon-96.png: resize only, keep transparency
+    let icon_96 = {
+        let resized = transform::resize_exact(&img, 96);
+        encoder::png::encode(&resized)
+            .map_err(|e| JsValue::from_str(&e))?
+    };
+
     // icon-512-maskable.png: solid bg + logo in safe zone
     let icon_512_maskable = {
-        let fitted = transform::fit_safe_zone(&img, 512, options.safe_zone, bg_rgb);
+        let fitted = transform::fit_safe_zone(&img, 512, options.safe_zone, bg_rgb, options.fill_gradient, grad_rgb);
         encoder::png::encode(&fitted)
             .map_err(|e| JsValue::from_str(&e))?
     };
@@ -127,7 +174,7 @@ pub fn generate_favicon_set(
     // apple-touch-icon.png: 180×180, solid bg, safe zone 80% (no transparency — avoids iOS black-fill bug;
     // iOS rounds corners itself so keeping an 80% zone prevents logo edges from being clipped)
     let apple_touch_icon = {
-        let fitted = transform::fit_safe_zone(&img, 180, 0.80, bg_rgb);
+        let fitted = transform::fit_safe_zone(&img, 180, 0.80, bg_rgb, options.fill_gradient, grad_rgb);
         encoder::png::encode(&fitted)
             .map_err(|e| JsValue::from_str(&e))?
     };
@@ -135,6 +182,8 @@ pub fn generate_favicon_set(
     Ok(FaviconSet {
         favicon_ico,
         icon_192,
+        icon_48,
+        icon_96,
         icon_512_maskable,
         apple_touch_icon,
         theme_color,

@@ -11,7 +11,7 @@ Key tenets:
 - **No outer-shape assumptions** (let the OS control the crop)
 - **Zero over-engineering** (no SVG auto-tracing, no monochrome badges, no dark-mode switching, no Windows tile legacy, and no Open Graph images which belong to social media sharing)
 
-Our goal is to produce the absolute minimum set of icons needed for production PWA deployment:
+Our goal is to produce the absolute minimum set of core PWA files:
 ```
 favicon.ico
 icon-192.png
@@ -19,7 +19,10 @@ icon-512-maskable.png
 apple-touch-icon.png
 manifest.json
 ```
-Exactly **4 image files + 1 manifest**. No more, no less.
+Exactly **7 universal files** are generated:
+- **5 Core PWA Files** (4 images + 1 manifest) to ensure 100% modern device compatibility.
+- **2 Bonus SEO Files** (`icon-48.png` and `icon-96.png`) strictly for SERP/Discovery optimization.
+Zero legacy bloat.
 
 ---
 
@@ -77,20 +80,19 @@ Requirements:
 
 ---
 
-## 5. Gradient Background Rule
+## 5. 3D Convex Light Reflection Rule (Gradient)
 
-A subtle gradient is highly recommended. 
+A subtle gradient is highly recommended to give the icon a premium, native feel. 
 
 An app icon is an object living within the visual ecosystem of the OS. Modern native icons typically have depth, lighting, gradients, or a subtle atmosphere. A completely flat icon feels like a basic web shortcut rather than a native app.
 
-A gradient helps:
-- Provide depth and native app feel
-- Prevent the "logo pasted on color" look
-- Establish brand atmosphere without adding distracting elements
-- Make the icon stand out on the Home Screen
+To achieve this, we use a **3D Convex Light Reflection** model:
+- A wide, subtle gradient that simulates a strong light source hitting the icon from the top-left (approx 35-degree angle).
+- This creates the illusion of a convex (lồi) surface, where the top-left area reflects the light and gives the icon depth.
+- This prevents the "logo pasted on color" look and makes the icon stand out on the Home Screen.
 
 Keep gradients subtle:
-- **Do:** Use subtle linear gradients, subtle radial glow, or 2-3 closely related colors.
+- **Do:** Use this 3D radial light reflection or 2 closely related colors.
 - **Don't:** Use aggressive RGB transitions, complex patterns, textures, or high-contrast noise. The symbol must remain the focal point.
 
 ---
@@ -148,40 +150,48 @@ The brand symbol must not touch the canvas edges, but the background must fill t
 
 ---
 
-## 9. Favicon.ico Is A Different Problem
+## 9. Two Processing Groups: Source-Faithful vs. Force-Filled
 
-`favicon.ico` is not an app icon. It is designed for browser tabs, bookmarks, and legacy desktop environments. It requires its own dedicated pipeline.
+The generator strictly respects your input. It **never automatically removes backgrounds** (this is too risky and error-prone). For best results on transparent icons, upload a transparent PNG.
+
+We categorize our exports into two distinct processing pipelines:
+
+### Group A: Source-Faithful (Original Transparency Preserved)
+These files use the original image's alpha channel. If you upload a transparent PNG, these will remain transparent. If you upload an opaque JPEG, they will remain opaque. The tool does not lie or make assumptions.
+- **`favicon.ico`** (16x16 + 32x32)
+- **`icon-48.png`** (48x48, SEO/SERP Discovery)
+- **`icon-96.png`** (96x96, Retina/Footer)
+- **`icon-192.png`** (192x192, PWA fallback)
+
+### Group B: Force-Filled (Opaque Backgrounds)
+These files are forcefully placed on an opaque background (solid color or gradient) and shrunk to fit within the safe zone. This is required by their respective platform specifications to avoid rendering bugs (like iOS black corners).
+- **`icon-512-maskable.png`** (Android adaptive icon)
+- **`apple-touch-icon.png`** (iOS home screen icon)
+
+---
+
+## 10. Favicon.ico Is A Different Problem
+
+`favicon.ico` is not an app icon. It is designed for browser tabs, bookmarks, and legacy desktop environments. 
+It requires high contrast, original transparency (from Group A), and minimal details.
 
 Key properties:
 - Must contain **16x16** and **32x32** resolutions in a single ICO binary.
 - This avoids fuzzy browser-side downscaling.
-- Priority: extreme readability at small sizes.
+
+The legacy concept of "automatic background removal" is an anti-pattern. If you want a transparent favicon, you must upload a transparent source file.
 
 ---
 
-## 10. Favicon Pipeline
+## 11. Comparison: App Icons vs. Discovery/Favicons
 
-Unlike app icons, favicons require high contrast, transparency, and minimal details.
-
-The favicon pipeline:
-`Input image → Extract/simplify main brand symbol → Remove app background (transparent canvas) → Center symbol in transparent canvas → Optional rounded-square normalization (for symbol definition) → Render 32x32 → Render 16x16 with optional sharpening → Package into ICO.`
-
-**Rules:**
-- **Transparent canvas**.
-- **No circles by default** (circles reduce the visual area too much at 16px).
-- **Optional rounded-square transparent normalization** (adds a transparent rounded box if the symbol lacks self-contained shape).
-- Keep it clean: simplify details so the brand remains recognizable at 16x16.
-
----
-
-## 11. Comparison: App Icons vs. Favicon
-
-| Feature | App Icons (`icon-192.png`, `icon-512-maskable.png`, `apple-touch-icon.png`) | Favicon (`favicon.ico`) |
-|---------|----------------------------------------------------------------------------|--------------------------|
-| **Target** | OS Home Screen / App Launcher / Splash Screens | Browser Tabs / Bookmarks / History |
-| **Background** | Opaque (solid color / subtle gradient) | Transparent (symbol-first) |
-| **Margins** | Center safe-zone (76-80%), full-bleed background | Centered, transparent normalization if needed |
-| **Masking** | Handled by OS (no pre-clipping) | Not masked (raw square/transparent symbol) |
+| Feature | Force-Filled (Group B) | Source-Faithful (Group A) |
+|---------|------------------------|---------------------------|
+| **Files** | `icon-512-maskable.png`, `apple-touch-icon.png` | `favicon.ico`, `icon-48/96.png`, `icon-192.png` |
+| **Target** | OS Home Screen / App Launcher | Browser Tabs / Bookmarks / SERP |
+| **Background** | Opaque (solid color / subtle gradient) | Original transparency preserved |
+| **Margins** | Center safe-zone (76-80%), full-bleed background | Centered, exact resize |
+| **Masking** | Handled by OS (no pre-clipping) | Not masked |
 
 ---
 
@@ -220,8 +230,9 @@ Minimal manifest template:
 
 ## 13. Summary Matrix
 
-1. **`favicon.ico`**: 16x16 + 32x32, transparent, rounded-square transparent normalized, for desktop browser tabs.
-2. **`icon-192.png`**: 192x192, PNG, PWA fallback icon, purpose: `"any"`.
-3. **`icon-512-maskable.png`**: 512x512, PNG, full-bleed opaque/gradient bg, symbol in 76-80% safe zone, purpose: `"maskable"`.
-4. **`apple-touch-icon.png`**: 180x180, PNG, full-bleed opaque/gradient bg, symbol in 76-80% safe zone, no pre-clipped corners, for iOS.
-5. **`manifest.json`**: Minimal W3C metadata declaring PWA theme details and icon purposes.
+1. **`favicon.ico`**: 16x16 + 32x32, original transparency preserved.
+2. **`icon-48.png` & `icon-96.png`**: 48x48 and 96x96, original transparency preserved, SEO & Brand Discovery (not in manifest).
+3. **`icon-192.png`**: 192x192, original transparency preserved, PWA fallback icon, purpose: `"any"`.
+4. **`icon-512-maskable.png`**: 512x512, full-bleed opaque/gradient bg, symbol in 76-80% safe zone, purpose: `"maskable"`.
+5. **`apple-touch-icon.png`**: 180x180, full-bleed opaque/gradient bg, symbol in 76-80% safe zone, no pre-clipped corners, for iOS.
+6. **`manifest.json`**: Minimal W3C metadata declaring PWA theme details and icon purposes.

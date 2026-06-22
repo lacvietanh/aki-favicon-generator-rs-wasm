@@ -15,8 +15,12 @@ const shortName = ref('App')
 const selectedFileName = ref('')
 const selectedFileSize = ref('')
 
+const rawImageBytes = ref(null)
+const useGradient = ref(true)
+
 const themeColor = ref('—')
 const backgroundColor = ref('—')
+const gradientColor = ref('#ffffff')
 
 const uiTheme = ref('light')
 const fileInputRef = ref(null)
@@ -76,7 +80,7 @@ onMounted(() => {
 })
 
 // ── Preview URLs ──────────────────────────────────────────────────────────────
-const previewUrls = ref({ faviconIco: null, icon192: null, icon512Maskable: null, appleTouch: null })
+const previewUrls = ref({ faviconIco: null, icon48: null, icon96: null, icon192: null, icon512Maskable: null, appleTouch: null })
 
 const currentYear = new Date().getFullYear()
 
@@ -92,11 +96,13 @@ const sizeAndSpeedFacts = computed(() => {
 })
 
 const outputArtifacts = [
-  { name: 'favicon.ico',           size: '16×16 + 32×32', role: 'Browser tab + bookmarks',            purpose: 'Transparent canvas, rounded-square normalized, multi-res ICO.' },
-  { name: 'icon-192.png',          size: '192×192',        role: 'PWA fallback icon',                  purpose: 'purpose: "any" — broadly compatible for PWA manifest.' },
-  { name: 'icon-512-maskable.png', size: '512×512',        role: 'Android adaptive icon + splash',     purpose: 'purpose: "maskable" — full-bleed opaque bg, 80% safe zone.' },
-  { name: 'apple-touch-icon.png',  size: '180×180',        role: 'iOS home screen icon',               purpose: 'Edge-to-edge opaque bg avoids iOS black-fill on transparent images.' },
-  { name: 'manifest.json',         size: 'JSON',           role: 'PWA metadata',                       purpose: 'Declares theme_color, background_color, icon purposes.' },
+  { group: 'A', name: 'favicon.ico',           size: '16×16 + 32×32', role: 'Browser tab + bookmarks',            purpose: 'Source-faithful — original transparency preserved, multi-res ICO.' },
+  { group: 'A', name: 'icon-48.png',           size: '48×48',         role: 'SEO & Discovery (SERP/RSS)',          purpose: 'Source-faithful — original transparency preserved.' },
+  { group: 'A', name: 'icon-96.png',           size: '96×96',         role: 'SEO & Discovery (Retina/Footer)',     purpose: 'Source-faithful — original transparency preserved.' },
+  { group: 'A', name: 'icon-192.png',          size: '192×192',       role: 'PWA fallback icon',                  purpose: 'Source-faithful — broadly compatible for PWA manifest.' },
+  { group: 'B', name: 'icon-512-maskable.png', size: '512×512',       role: 'Android adaptive icon + splash',     purpose: 'Force-filled — purpose: "maskable" opaque bg, 80% safe zone.' },
+  { group: 'B', name: 'apple-touch-icon.png',  size: '180×180',       role: 'iOS home screen icon',               purpose: 'Force-filled — edge-to-edge opaque bg avoids iOS black-fill.' },
+  { group: 'C', name: 'manifest.json',         size: 'JSON',          role: 'PWA metadata',                       purpose: 'Declares theme_color, background_color, icon purposes.' },
 ]
 
 const mvpExclusions = [
@@ -126,7 +132,7 @@ const bytesToReadable = (bytes) => {
 
 const revokePreviewUrls = () => {
   Object.values(previewUrls.value).forEach(u => { if (u) URL.revokeObjectURL(u) })
-  previewUrls.value = { faviconIco: null, icon192: null, icon512Maskable: null, appleTouch: null }
+  previewUrls.value = { faviconIco: null, icon48: null, icon96: null, icon192: null, icon512Maskable: null, appleTouch: null }
 }
 
 const revokeZipUrl = () => { if (resultUrl.value) { URL.revokeObjectURL(resultUrl.value); resultUrl.value = null } }
@@ -145,14 +151,18 @@ const buildManifest = (result) => ({
 })
 
 const buildSnippet = (theme) => `<link rel="icon" href="/favicon/favicon.ico" sizes="32x32">
-<link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon/icon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon/icon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/favicon/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
 <link rel="manifest" href="/favicon/manifest.json">
 <meta name="theme-color" content="${theme}">`
 
 const updatePreviewUrls = (result) => {
   revokePreviewUrls()
   previewUrls.value.faviconIco       = URL.createObjectURL(new Blob([result.favicon_ico],          { type: 'image/x-icon' }))
+  previewUrls.value.icon48           = URL.createObjectURL(new Blob([result.icon_48],               { type: 'image/png' }))
+  previewUrls.value.icon96           = URL.createObjectURL(new Blob([result.icon_96],               { type: 'image/png' }))
   previewUrls.value.icon192          = URL.createObjectURL(new Blob([result.icon_192],              { type: 'image/png' }))
   previewUrls.value.icon512Maskable  = URL.createObjectURL(new Blob([result.icon_512_maskable],    { type: 'image/png' }))
   previewUrls.value.appleTouch       = URL.createObjectURL(new Blob([result.apple_touch_icon],     { type: 'image/png' }))
@@ -160,6 +170,8 @@ const updatePreviewUrls = (result) => {
 
 const createZip = (result, manifest, snippet) => zipSync({
   'favicon/favicon.ico':            result.favicon_ico,
+  'favicon/icon-48.png':            result.icon_48,
+  'favicon/icon-96.png':            result.icon_96,
   'favicon/icon-192.png':           result.icon_192,
   'favicon/icon-512-maskable.png':  result.icon_512_maskable,
   'favicon/apple-touch-icon.png':   result.apple_touch_icon,
@@ -222,16 +234,18 @@ self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });`
   } catch (err) { deployState.value.status = 'error'; deployState.value.error = String(err) }
 }
 
-const processFile = async (file) => {
-  if (!file) return
-  errorMsg.value = ''; copied.value = false; isProcessing.value = true
-  selectedFileName.value = file.name; selectedFileSize.value = bytesToReadable(file.size)
+const regenerate = async () => {
+  if (!rawImageBytes.value) return
+  isProcessing.value = true
   deployState.value = { status: 'idle', url: '', error: '' }
   try {
-    const imageBytes = new Uint8Array(await file.arrayBuffer())
-    await init()
-    const options = new FaviconOptions()
-    const result = generate_favicon_set(imageBytes, options)
+    let options = new FaviconOptions()
+    if (themeColor.value && themeColor.value !== '—') options = options.with_theme_color(themeColor.value)
+    if (backgroundColor.value && backgroundColor.value !== '—') options = options.with_background_color(backgroundColor.value)
+    options = options.with_fill_gradient(useGradient.value)
+    if (useGradient.value && gradientColor.value) options = options.with_gradient_color(gradientColor.value)
+
+    const result = generate_favicon_set(rawImageBytes.value, options)
     lastResult.value = result
     themeColor.value = result.theme_color
     backgroundColor.value = result.background_color
@@ -244,6 +258,24 @@ const processFile = async (file) => {
     resultUrl.value = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }))
   } catch (err) { errorMsg.value = String(err) }
   finally { isProcessing.value = false }
+}
+
+const processFile = async (file) => {
+  if (!file) return
+  errorMsg.value = ''; copied.value = false; isProcessing.value = true
+  selectedFileName.value = file.name; selectedFileSize.value = bytesToReadable(file.size)
+  deployState.value = { status: 'idle', url: '', error: '' }
+  themeColor.value = '—'; backgroundColor.value = '—'
+  
+  try {
+    const imageBytes = new Uint8Array(await file.arrayBuffer())
+    rawImageBytes.value = imageBytes
+    await init()
+    await regenerate()
+  } catch (err) { 
+    errorMsg.value = String(err)
+    isProcessing.value = false 
+  }
 }
 
 const onFileInputChange = async (e) => { await processFile(e.target.files?.[0]) }
@@ -315,8 +347,40 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
           <input ref="fileInputRef" class="hidden-input" type="file" accept="image/png, image/jpeg" :disabled="isProcessing" @change="onFileInputChange" />
           <span class="dropzone-icon">{{ isProcessing ? '⏳' : '📁' }}</span>
           <strong>{{ isProcessing ? 'Processing…' : 'Drop image or click to upload' }}</strong>
-          <span>PNG or JPEG</span>
+          <span>Transparent PNG is highly recommended for best results.</span>
           <small v-if="selectedFileName">{{ selectedFileName }} <em>({{ selectedFileSize }})</em></small>
+        </div>
+
+        <div class="color-settings form-grid" v-if="rawImageBytes" style="margin-top: 1rem">
+          <label>
+            Theme Color
+            <div class="color-input-group">
+               <input type="color" :value="themeColor === '—' ? '#ffffff' : themeColor" @input="e => themeColor = e.target.value" @change="regenerate" />
+               <input type="text" v-model="themeColor" @change="regenerate" placeholder="#ffffff" />
+            </div>
+          </label>
+          <label>
+            Background Color
+            <div class="color-input-group">
+               <input type="color" :value="backgroundColor === '—' ? '#000000' : backgroundColor" @input="e => backgroundColor = e.target.value" @change="regenerate" />
+               <input type="text" v-model="backgroundColor" @change="regenerate" placeholder="#000000" />
+            </div>
+          </label>
+          <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.5rem; background: var(--muted-bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--muted-border);">
+            <label class="checkbox-label" style="flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 500; font-size: 0.85rem;">
+              <input type="checkbox" v-model="useGradient" @change="regenerate" />
+              3D Gradient
+            </label>
+            <div v-if="useGradient" style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="flex: 1;">
+                Highlight Color
+                <div class="color-input-group">
+                  <input type="color" v-model="gradientColor" @change="regenerate" />
+                  <input type="text" v-model="gradientColor" @change="regenerate" placeholder="#ffffff" />
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
 
         <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
@@ -417,13 +481,31 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
           </div>
 
           <!-- Browser favicon strip at bottom of stage -->
-          <div class="preview-browser-strip">
+          <div class="preview-browser-strip" style="gap: 1.5rem; flex-wrap: wrap;">
             <div class="preview-tab-pill">
               <!-- favicon: direct WASM output — no CSS border-radius override -->
               <img v-if="previewUrls.faviconIco" :src="previewUrls.faviconIco" alt="favicon" class="preview-favicon" />
               <div v-else class="favicon-placeholder" />
               <span class="preview-tab-name">{{ shortName || 'App' }}</span>
               <span class="preview-tab-platform">Browser Tab</span>
+            </div>
+
+            <div class="preview-tab-pill">
+              <img v-if="previewUrls.icon48" :src="previewUrls.icon48" alt="48x48" class="preview-favicon" style="width: 24px; height: 24px" />
+              <div v-else class="favicon-placeholder" style="width: 24px; height: 24px" />
+              <div style="display: flex; flex-direction: column;">
+                <span class="preview-tab-name">SERP / RSS</span>
+                <span class="preview-tab-platform" style="margin-left: 0; font-size: 0.6rem">48×48 Discovery</span>
+              </div>
+            </div>
+
+            <div class="preview-tab-pill">
+              <img v-if="previewUrls.icon96" :src="previewUrls.icon96" alt="96x96" class="preview-favicon" style="width: 48px; height: 48px" />
+              <div v-else class="favicon-placeholder" style="width: 48px; height: 48px" />
+              <div style="display: flex; flex-direction: column;">
+                <span class="preview-tab-name">Retina UI</span>
+                <span class="preview-tab-platform" style="margin-left: 0; font-size: 0.6rem">96×96 Footer</span>
+              </div>
             </div>
           </div>
         </div>
@@ -432,7 +514,7 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
         <div class="preview-captions">
           <span>Android &amp; Web App → <code>icon-512-maskable.png</code></span>
           <span>iOS → <code>apple-touch-icon.png</code></span>
-          <span>Browser → <code>favicon.ico</code> (WASM rounded-square)</span>
+          <span>Browser/SERP/Retina → <code>favicon.ico</code> / <code>icon-48.png</code> / <code>icon-96.png</code> (Source-faithful)</span>
         </div>
       </div>
 
@@ -465,7 +547,11 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
           <ul class="artifact-list">
             <li v-for="a in outputArtifacts" :key="a.name" class="artifact-item">
               <div class="artifact-header">
-                <code class="artifact-name">{{ a.name }}</code>
+                <div>
+                  <code class="artifact-name" style="margin-right: 0.5rem">{{ a.name }}</code>
+                  <span v-if="a.group === 'A'" class="badge badge-a">Source-faithful</span>
+                  <span v-if="a.group === 'B'" class="badge badge-b">Force-filled</span>
+                </div>
                 <span class="artifact-size">{{ a.size }}</span>
               </div>
               <span class="artifact-role">{{ a.role }}</span>
@@ -495,7 +581,7 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
       <div class="knowledge-grid">
 
         <div class="knowledge-card panel">
-          <h3>Why only 5 files?</h3>
+          <h3>Why 5 Core + 2 SEO files?</h3>
           <table class="knowledge-table">
             <thead><tr><th>Artifact</th><th>Role</th><th>Why</th></tr></thead>
             <tbody>
@@ -533,6 +619,14 @@ onBeforeUnmount(() => { revokePreviewUrls(); revokeZipUrl() })
             <li><code>image</code> crate enables only PNG + JPEG features to minimize size.</li>
             <li>Release flags: <code>opt-level=z</code>, LTO, strip, wasm-opt post-pass.</li>
             <li>Main-thread execution is practical for typical input sizes (&lt; 5 MB).</li>
+          </ul>
+        </div>
+
+        <div class="knowledge-card panel">
+          <h3>Changelog</h3>
+          <ul class="excl-list">
+            <li><strong>2026.06.22</strong> — Upgraded to 7-file architecture (5 PWA + 2 SEO). Added 3D Gradient light reflection toggle.</li>
+            <li><strong>2026.06.21</strong> — Initial release using WebAssembly (Rust) and Lanczos3 interpolation for pixel-perfect clarity.</li>
           </ul>
         </div>
 
@@ -1231,5 +1325,41 @@ input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
   .knowledge-grid { grid-template-columns: 1fr; }
   .preview-icon-row { gap: 1rem; }
   .preview-icon { width: 56px; height: 56px; }
+}
+
+.color-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.color-input-group input[type="color"] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.color-input-group input[type="text"] {
+  flex: 1;
+}
+
+.badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-a {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--brand);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+.badge-b {
+  background: rgba(185, 28, 28, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(185, 28, 28, 0.2);
 }
 </style>

@@ -121,6 +121,8 @@ Cấu hình tối đa để OS nhận diện như Native App.
 
 Đoạn manifest mẫu trên tuân thủ [web.dev install criteria](https://web.dev/articles/install-criteria): phải phục vụ qua HTTPS, có `display`/`start_url` nằm trong `scope`, cung cấp icon 192/512 (maskable khi có thể) và được service worker đang hoạt động kiểm soát để trình duyệt coi là installable. Cú pháp chính xác cho `share_target` và `file_handlers` lấy theo [MDN share_target reference](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/share_target) and [MDN file_handlers reference](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/file_handlers).
 
+> **Lưu ý về kích thước Icon cho Shortcuts:** Shortcuts mặc định có thể (và nên) tái sử dụng `icon-192.png` theo khuyến nghị của Chrome. Không cần thiết phải xuất một file size riêng (như 96x96) cho mục đích này trừ khi shortcut của bạn có artwork biểu tượng hoàn toàn riêng biệt (điều này nằm ngoài phạm vi của Favicon Generator).
+
 ### 2.2. iOS/Safari Meta Tags (Bắt buộc)
 Safari không đọc hết manifest, phải khai báo thủ công trong `index.html`.
 ```html
